@@ -98,8 +98,8 @@ class LevelBuilder(width: Int) {
         lv.zones += Zone(x0, x1, theme)
     }
 
-    fun warp(kind: WarpKind, tx: Int, ty: Int, destX: Int, destY: Int, exit: ExitKind) {
-        lv.warps += Warp(kind, tx, ty, destX, destY, exit)
+    fun warp(kind: WarpKind, tx: Int, ty: Int, destX: Int, destY: Int, exit: ExitKind, toLevel: Int = -1) {
+        lv.warps += Warp(kind, tx, ty, destX, destY, exit, toLevel)
     }
 
     /** Horizontal pipe whose mouth (facing left) is at column [x], rows [y] and [y]+1, going up to row 0 at [x]+2. */
@@ -231,16 +231,16 @@ object Levels {
         build()
     }
 
-    /** World 1-2: underground with lifts, ending in a pipe to the outside. */
-    private fun level12(): Level = LevelBuilder(204).run {
+    /** World 1-2: underground with lifts, ending in a pipe to the outside. A warp zone hides above the ceiling. */
+    private fun level12(): Level = LevelBuilder(224).run {
         lv.name = "1-2"
         lv.time = 400
         lv.music = Song.UNDERGROUND
-        lv.checkpointX = 80
+        lv.checkpointX = 98
         lv.startX = 3
         lv.startY = 12
-        zone(0, 164, Theme.UNDERGROUND)
-        zone(164, 204, Theme.OVERWORLD)
+        zone(0, 182, Theme.UNDERGROUND)
+        zone(184, 224, Theme.OVERWORLD)
 
         ground(0, 79)
         column(0, 2, 12, Tile.BRICK)
@@ -298,21 +298,33 @@ object Levels {
         lv.lifts += LiftSpawn(LiftKind.LOOP_DOWN, 140f * 16, 2f * 16, 3)
         lv.lifts += LiftSpawn(LiftKind.LOOP_DOWN, 140f * 16, 10f * 16, 3)
 
-        ground(144, 163)
-        row(144, 2, "B".repeat(20))
-        column(163, 0, 12, Tile.BRICK)
+        ground(144, 181)
+        row(144, 2, "B".repeat(24))
+        column(163, 3, 12, Tile.BRICK)
         row(146, 9, "BBBBBB")
         row(146, 8, "oooooo")
+        lv.camLimitX = 164 * 16 - SCREEN_W
+
+        // Warp zone, only reachable over the ceiling
+        column(181, 0, 12, Tile.BRICK)
+        val w3 = pipe(170, 3)
+        val w4 = pipe(176, 3)
+        warp(WarpKind.PIPE_DOWN, 170, w3, 0, 0, ExitKind.DROP, toLevel = 2)
+        warp(WarpKind.PIPE_DOWN, 176, w4, 0, 0, ExitKind.DROP, toLevel = 3)
+        lv.warpZoneX = 167
+        lv.warpLabels += 170 to "3"
+        lv.warpLabels += 176 to "4"
+
         // Outside
-        ground(164, 203)
-        val exitTop = pipe(168, 2)
-        sidePipe(157, 11)
-        warp(WarpKind.PIPE_RIGHT, 157, 11, 168, exitTop, ExitKind.PIPE_UP)
-        stairsUp(172, 8)
-        column(180, 5, 12, Tile.HARD)
-        flag(189)
-        castle(193)
-        scenery(164, 204)
+        ground(184, 223)
+        val exitTop = pipe(188, 2)
+        sidePipe(157, 11, topRow = 3)
+        warp(WarpKind.PIPE_RIGHT, 157, 11, 188, exitTop, ExitKind.PIPE_UP)
+        stairsUp(192, 8)
+        column(200, 5, 12, Tile.HARD)
+        flag(209)
+        castle(213)
+        scenery(184, 224)
         build()
     }
 
@@ -431,7 +443,7 @@ object Levels {
         lv.set(132, 9, Tile.CHAIN)
         enemy(EnemyKind.BOSS, 128, 9)
         fill(133, 159, 10, 14, stone)
-        fill(133, 159, 3, 5, stone)
+        fill(133, 135, 3, 5, stone)
         lv.axeX = 133
         lv.axeY = 9
         build()

@@ -39,4 +39,64 @@ class ScreenshotTest {
         run(g, 200) { right = true; run = true }
         shot(g, "06_run")
     }
+
+    @Test
+    fun scenes() {
+        // warp zone
+        var g = Game()
+        g.debugLoad(1, 170, noEnemies = true)
+        run(g, 20)
+        shot(g, "10_warpzone")
+        // big hero next to blocks, then fire hero throwing
+        g = Game()
+        g.debugLoad(0, 19, power = 1, noEnemies = true)
+        run(g, 3)
+        shot(g, "11_big")
+        g = Game()
+        g.debugLoad(0, 30, power = 2)
+        run(g, 30) { right = true }
+        run(g, 3) { run = true }
+        run(g, 6)
+        shot(g, "12_fire")
+        // boss fight
+        g = Game()
+        g.debugLoad(3, 120, power = 2)
+        run(g, 2)
+        run(g, 12) { right = true }
+        run(g, 3) { run = true }
+        run(g, 160)
+        shot(g, "13_boss")
+        // underground start
+        g = Game()
+        g.debugLoad(1, 30)
+        run(g, 60)
+        shot(g, "14_underground")
+        // castle fire bars
+        g = Game()
+        g.debugLoad(3, 18)
+        run(g, 40)
+        shot(g, "15_castle")
+        // flag pole
+        g = Game()
+        g.debugLoad(0, 186, noEnemies = true)
+        run(g, 2)
+        run(g, 40) { right = true; run = true }
+        run(g, 40) { right = true; run = true; jump = true }
+        run(g, 20)
+        shot(g, "16_flag")
+        run(g, 200)
+        shot(g, "17_castle_walk")
+        // rescue
+        g = Game()
+        g.debugLoad(3, 131, noEnemies = true)
+        run(g, 3)
+        run(g, 60) { right = true }
+        run(g, 900)
+        shot(g, "18_rescue")
+        // tree tops
+        g = Game()
+        g.debugLoad(2, 30)
+        run(g, 30)
+        shot(g, "19_trees")
+    }
 }

@@ -121,19 +121,22 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
             }
             game.render(screen)
             frame.setPixels(screen.pixels, 0, SCREEN_W, 0, 0, SCREEN_W, SCREEN_H)
-            val canvas = lock() ?: continue
-            try {
-                drawFrame(canvas)
-            } finally {
-                holder.unlockCanvasAndPost(canvas)
-            }
+            present()
         }
     }
 
-    private fun lock(): Canvas? = try {
-        holder.lockHardwareCanvas()
-    } catch (e: Exception) {
-        holder.lockCanvas()
+    private fun present() {
+        // The surface can disappear at any moment (app sent to background); never let that kill the thread.
+        val canvas = try {
+            holder.lockHardwareCanvas()
+        } catch (e: Exception) {
+            try { holder.lockCanvas() } catch (e2: Exception) { null }
+        } ?: return
+        try {
+            drawFrame(canvas)
+        } finally {
+            try { holder.unlockCanvasAndPost(canvas) } catch (_: Exception) {}
+        }
     }
 
     private fun gatherInput() {

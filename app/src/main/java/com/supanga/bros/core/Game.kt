@@ -81,12 +81,16 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
     // ------------------------------------------------------------------ flow
 
     fun pause() {
-        if (state != State.TITLE && state != State.INTRO && state != State.GAME_OVER) paused = true
+        if (state != State.TITLE && state != State.INTRO && state != State.GAME_OVER && !paused) {
+            paused = true
+            sound.pauseMusic(true)
+        }
     }
 
     fun togglePause() {
         if (state == State.TITLE || state == State.INTRO || state == State.GAME_OVER) return
         paused = !paused
+        sound.pauseMusic(paused)
         sound.play(Sfx.PAUSE)
     }
 
@@ -154,6 +158,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         player = Player(sx * 16f + 2, 0f)
         player.setPower(savedPower)
         player.y = feet - player.h.toFloat()
+        player.moveY(level, 0.1f) // settle on the ground
         val zone = level.zoneAt(sx)
         camX = (sx * TILE - 40).coerceIn(zone.x0 * TILE, maxOf(zone.x0 * TILE, zone.x1 * TILE - SCREEN_W))
         if (!checkpoint) camX = zone.x0 * TILE
@@ -182,20 +187,25 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
     }
 
     /** Test helper: start [index] directly with the player at tile column [tx]. */
-    internal fun debugLoad(index: Int, tx: Int = -1, power: Int = 0) {
+    internal fun debugLoad(index: Int, tx: Int = -1, power: Int = 0, noEnemies: Boolean = false) {
         levelIndex = index
         savedPower = power
         checkpoint = false
         loadLevel(index)
+        if (noEnemies) level.spawns.forEach { it.spawned = true }
         if (tx >= 0) {
             val zone = level.zoneAt(tx)
             player.x = tx * 16f + 2
             player.y = groundRow(tx) * 16f - player.h
+            player.moveY(level, 0.1f)
             camX = (tx * TILE - 40).coerceIn(zone.x0 * TILE, maxOf(zone.x0 * TILE, zone.x1 * TILE - SCREEN_W))
         }
         state = State.PLAYING
         paused = false
     }
+
+    /** Test helper: enemies can't hurt the player (falling into pits still kills). */
+    internal var debugGod = false
 
     /** Test helper: move the camera and spawn what would be visible there. */
     internal fun debugCamera(x: Int) {
@@ -328,9 +338,9 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         if (p.mode != PMode.NORMAL) return
 
         spawnEnemies()
-        for (e in enemies) e.update(this)
-        for (it in items) it.update(this)
-        for (f in fireballs) f.update(this)
+        enemies.forEachSafe { it.update(this) }
+        items.forEachSafe { it.update(this) }
+        fireballs.forEachSafe { it.update(this) }
         updateEffects()
         interact()
         enemies.removeAll { it.dead || (!it.alwaysActive && (it.x + it.w < camX - 64)) }
@@ -346,16 +356,29 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
             killPlayer()
             return
         }
-        if (level.flagX >= 0 && p.x + p.w >= level.flagX * TILE + 6) {
-            grabFlag()
-            return
+        if (level.flagX >= 0 && p.x < level.flagX * TILE + 16) {
+            val poleHit = p.x + p.w >= level.flagX * TILE + 6
+            val baseHit = p.onGround && p.bottom > 12 * TILE && p.x + p.w >= level.flagX * TILE - 0.5f
+            if (poleHit || baseHit) {
+                grabFlag()
+                return
+            }
         }
         if (level.axeX >= 0 && !axeTaken && p.overlaps(level.axeX * 16f, level.axeY * 16f, 16f, 16f)) touchAxe()
     }
 
     private fun updateEffects() {
-        for (e in effects) e.update(this)
+        effects.forEachSafe { it.update(this) }
         effects.removeAll { it.dead }
+    }
+
+    /** Index based iteration: entities may add new entities while being updated. */
+    private inline fun <T> MutableList<T>.forEachSafe(f: (T) -> Unit) {
+        var i = 0
+        while (i < size) {
+            f(this[i])
+            i++
+        }
     }
 
     private fun landOnLifts() {
@@ -410,6 +433,13 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
     private fun doWarp() {
         val p = player
         val w = p.warp ?: return
+        if (w.toLevel >= 0) {
+            savedPower = p.power
+            levelIndex = w.toLevel
+            checkpoint = false
+            toIntro()
+            return
+        }
         enemies.clear()
         items.clear()
         fireballs.clear()
@@ -459,7 +489,10 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         val zone = level.zoneAt(ftile(player.cx))
         val target = player.x.toInt() - 112
         if (target > camX) camX = target
-        camX = camX.coerceIn(zone.x0 * TILE, maxOf(zone.x0 * TILE, zone.x1 * TILE - SCREEN_W))
+        var maxX = maxOf(zone.x0 * TILE, zone.x1 * TILE - SCREEN_W)
+        val lim = level.camLimitX
+        if (lim >= 0 && player.bottom > 3 * TILE + 4 && camX <= lim + 2 && lim > zone.x0 * TILE) maxX = minOf(maxX, lim)
+        camX = camX.coerceIn(zone.x0 * TILE, maxX)
     }
 
     // ------------------------------------------------------------------ interactions
@@ -576,7 +609,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
 
     fun hurtPlayer() {
         val p = player
-        if (p.invuln > 0 || p.star > 0 || p.mode != PMode.NORMAL) return
+        if (debugGod || p.invuln > 0 || p.star > 0 || p.mode != PMode.NORMAL) return
         if (p.power > 0) {
             p.setPower(0)
             p.mode = PMode.SHRINK
@@ -766,6 +799,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         p.star = 0
         p.ducking = false
         p.x = poleX - p.w + 1
+        if (p.bottom > 12 * TILE) p.y = 12f * TILE - p.h // grabbed from the ground: stand on the base block
         p.facing = 1
         p.riding = null
         sound.stopMusic()
@@ -867,7 +901,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
             bridgeIdx--
             sound.play(Sfx.BUMP)
         }
-        for (e in enemies) if (e is Boss) {
+        enemies.forEachSafe { e -> if (e !is Boss) return@forEachSafe
             e.update(this)
             if (!bossFallPlayed && !e.onGround && e.vy > 1f) {
                 bossFallPlayed = true
@@ -943,6 +977,13 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         renderTiles(s, zone.theme)
         renderFlag(s)
         if (level.castleLevel) renderCastleProps(s)
+        if (level.warpZoneX >= 0) {
+            val wx = level.warpZoneX * TILE - camX
+            if (wx < SCREEN_W && wx > -200) {
+                s.text("WELCOME TO WARP ZONE!", wx, 88)
+                for ((tx, label) in level.warpLabels) s.text(label, tx * TILE + 12 - camX, 120)
+            }
+        }
         for (l in lifts) l.render(s, camX)
         for (it in items) if (it.emerge == 0) it.render(s, camX)
         for (e in enemies) if (!e.behindTiles) e.render(s, camX)
@@ -1040,14 +1081,19 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
     }
 
     private fun renderHud(s: Screen, showTime: Boolean) {
-        s.text("NGA", 24, 16)
-        s.text(score.toString().padStart(6, '0'), 24, 24)
+        val shadow = state != State.INTRO && state != State.GAME_OVER && level.zoneAt((camX + 128) / TILE).theme == Theme.CASTLE
+        fun t(text: String, x: Int, y: Int) {
+            if (shadow) s.text(text, x + 1, y + 1, Colors.BLACK)
+            s.text(text, x, y)
+        }
+        t("NGA", 24, 16)
+        t(score.toString().padStart(6, '0'), 24, 24)
         s.draw(Sprites.hudCoin[qSeq[((frame / 8) % 6).toInt()]], 88, 24)
-        s.text("*" + coins.toString().padStart(2, '0'), 96, 24)
-        s.text("WORLD", 144, 16)
-        s.text(levelName(), 152, 24)
-        s.text("TIME", 200, 16)
-        if (showTime && state != State.INTRO && state != State.GAME_OVER) s.text(time.toString().padStart(3, '0'), 208, 24)
+        t("*" + coins.toString().padStart(2, '0'), 96, 24)
+        t("WORLD", 144, 16)
+        t(levelName(), 152, 24)
+        t("TIME", 200, 16)
+        if (showTime && state != State.INTRO && state != State.GAME_OVER) t(time.toString().padStart(3, '0'), 208, 24)
     }
 
     private fun levelName() = "1-${levelIndex + 1}"
@@ -1104,11 +1150,11 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
     }
 
     private fun renderRescueText(s: Screen) {
-        if (rescueStep >= 1) s.textCentered("THANK YOU NGA!", 72)
+        if (rescueStep >= 1) s.textCentered("THANK YOU NGA!", 64)
         if (rescueStep >= 2 && timer > 60) {
-            s.textCentered("THE KINGDOM IS SAFE", 96)
-            s.textCentered("AGAIN. FOR NOW...", 112)
+            s.textCentered("THE KINGDOM IS SAFE", 84)
+            s.textCentered("AGAIN. FOR NOW...", 100)
         }
-        if (rescueStep >= 2 && timer > 240 && (timer / 30) % 2 == 0) s.textCentered("PRESS A FOR A NEW QUEST", 144)
+        if (rescueStep >= 2 && timer > 240 && (timer / 30) % 2 == 0) s.textCentered("PRESS A FOR A NEW QUEST", 196)
     }
 }

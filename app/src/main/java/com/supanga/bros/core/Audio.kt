@@ -17,6 +17,8 @@ interface Sound {
     fun play(s: Sfx)
     fun music(song: Song, fast: Boolean = false)
     fun stopMusic()
+    /** Freezes / resumes the current song (sound effects keep playing). */
+    fun pauseMusic(paused: Boolean)
     /** True once a non-looping song (jingle) has played to its end. */
     val musicDone: Boolean
 }
@@ -25,6 +27,7 @@ object NoSound : Sound {
     override fun play(s: Sfx) {}
     override fun music(song: Song, fast: Boolean) {}
     override fun stopMusic() {}
+    override fun pauseMusic(paused: Boolean) {}
     override val musicDone = true
 }
 
@@ -225,6 +228,10 @@ class Synth(private val rate: Int = 22050) : Sound {
     override fun play(s: Sfx) { queue.add(Cmd.Effect(s)) }
     override fun music(song: Song, fast: Boolean) { done = false; queue.add(Cmd.Music(song, fast)) }
     override fun stopMusic() { queue.add(Cmd.Stop) }
+    override fun pauseMusic(paused: Boolean) { musicPaused = paused }
+
+    @Volatile
+    private var musicPaused = false
 
     private class Voice {
         var phase = 0f
@@ -307,7 +314,7 @@ class Synth(private val rate: Int = 22050) : Sound {
             // exponential glide sounds more natural than linear
             val f = if (s.f0 > 0f && s.f1 > 0f) (s.f0 * exp(ln(s.f1 / s.f0) * t)) else s.f0
             val v = s.v0 + (s.v1 - s.v0) * t
-            val out = osc(s.wave, voice, f) * v * 0.32f
+            val out = osc(s.wave, voice, f) * v * 0.5f
             pos++
             if (pos >= s.dur * rate) { seg++; pos = 0f }
             return out
@@ -367,10 +374,10 @@ class Synth(private val rate: Int = 22050) : Sound {
         val z = noise
         for (i in 0 until n) {
             var s = 0f
-            if (p != null) s += p.sample() * (if (t != null && t.active) 0.6f else 1f)
+            if (p != null && !musicPaused) s += p.sample() * (if (t != null && t.active) 0.6f else 1f)
             if (t != null) s += t.sample()
             if (z != null) s += z.sample()
-            val v = (s * 32767f * 0.8f).toInt().coerceIn(-32768, 32767)
+            val v = (s * 32767f * 1.45f).toInt().coerceIn(-32768, 32767)
             out[i] = v.toShort()
         }
         if (t != null && !t.active) tone = null

@@ -29,6 +29,7 @@ abstract class Enemy(x: Float, y: Float, w: Int, h: Int) : Entity(x, y, w, h) {
             return
         }
         act(g)
+        if (y > SCREEN_H + 48) dead = true
     }
 
     abstract fun act(g: Game)
@@ -138,6 +139,7 @@ class Turtle(tx: Int, ty: Int, private val red: Boolean, private var winged: Boo
             }
             S.SLIDE -> {
                 fall()
+                if (x > g.camX + SCREEN_W + 48) dead = true
                 if (moveX(g.level, vx)) {
                     vx = -vx
                     if (x > g.camX - 16 && x < g.camX + SCREEN_W) g.sound.play(Sfx.BUMP)

@@ -86,8 +86,8 @@ class Player(x: Float, y: Float) : Entity(x, y, 12, 14) {
     fun startJump(g: Game, run: Boolean) {
         val spd = abs(vx)
         when {
-            spd < 1f -> { vy = -4f; holdG = 0.125f; fallG = 0.4375f }
-            spd < 2.3125f -> { vy = -4f; holdG = 0.1172f; fallG = 0.375f }
+            spd < 1f -> { vy = -4.1f; holdG = 0.125f; fallG = 0.4375f }
+            spd < 2.3125f -> { vy = -4.1f; holdG = 0.1172f; fallG = 0.375f }
             else -> { vy = -5f; holdG = 0.15625f; fallG = 0.5625f }
         }
         takeoffSpeed = spd

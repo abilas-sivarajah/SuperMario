@@ -51,7 +51,7 @@ enum class WarpKind { PIPE_DOWN, PIPE_RIGHT }
 enum class ExitKind { PIPE_UP, DROP }
 
 /** Entering pipe tile ([tx],[ty]) moves the player to ([destX],[destY]) (tile coordinates). */
-class Warp(val kind: WarpKind, val tx: Int, val ty: Int, val destX: Int, val destY: Int, val exit: ExitKind)
+class Warp(val kind: WarpKind, val tx: Int, val ty: Int, val destX: Int, val destY: Int, val exit: ExitKind, val toLevel: Int = -1)
 
 enum class LiftKind { LOOP_UP, LOOP_DOWN, SWING_X, SWING_Y, FALL }
 
@@ -86,6 +86,10 @@ class Level(val width: Int, val height: Int = 15) {
     var bridgeX0 = -1
     var bridgeX1 = -1
     var bridgeY = -1
+    /** While the player is below the ceiling the camera may not scroll past this (hides the warp zone). */
+    var camLimitX = -1
+    var warpZoneX = -1
+    val warpLabels = mutableListOf<Pair<Int, String>>()
 
     // Block bump animation (a block hit from below moves up a few pixels and back).
     var bumpX = -1
