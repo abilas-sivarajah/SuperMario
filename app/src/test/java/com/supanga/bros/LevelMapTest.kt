@@ -29,7 +29,7 @@ class LevelMapTest {
                 val oy = (k / perRow) * SCREEN_H
                 for (y in 0 until SCREEN_H) for (x in 0 until SCREEN_W) out[(oy + y) * outW + ox + x] = screen.pixels[y * SCREEN_W + x]
             }
-            Png.write(File("build/screenshots/map_1-${i + 1}.png"), outW, rows * SCREEN_H, out, 1)
+            Png.write(File("build/screenshots/map_${Levels.names[i]}.png"), outW, rows * SCREEN_H, out, 1)
         }
     }
 }

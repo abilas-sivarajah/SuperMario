@@ -3,6 +3,7 @@ package com.supanga.bros
 import com.supanga.bros.core.Boss
 import com.supanga.bros.core.Buttons
 import com.supanga.bros.core.Game
+import com.supanga.bros.core.Levels
 import com.supanga.bros.core.PMode
 import com.supanga.bros.core.Synth
 import com.supanga.bros.core.Song
@@ -176,8 +177,113 @@ class GameplayTest {
     }
 
     @Test
+    fun castleLeadsToWorldTwo() {
+        val g = Game()
+        g.debugLoad(3, 130, noEnemies = true)
+        g.run(200) { right = true }
+        g.run(1000)
+        assertEquals(Game.State.RESCUE, g.state)
+        g.run(1) { jump = true }
+        assertEquals(Game.State.INTRO, g.state)
+        assertEquals("2-1", Levels.names[g.levelIndex])
+    }
+
+    /** Drops the hero onto the springboard of 2-1 and returns the highest point of the feet after the throw. */
+    private fun springApex(boost: Boolean, steer: Boolean = false): Game {
+        val g = Game()
+        g.debugLoad(4, 128, noEnemies = true)
+        g.run(2)
+        g.player.x = 132 * 16f + 2
+        g.player.y = 120f
+        var f = 0
+        while (g.player.spring == null && f++ < 60) g.update(pad)
+        assertTrue("didn't land on the spring", g.player.spring != null)
+        pad.jump = boost
+        pad.right = steer
+        pad.run = steer
+        return g
+    }
+
+    @Test
+    fun springboardBounces() {
+        val g = springApex(boost = false)
+        var top = g.player.bottom
+        repeat(90) { g.update(pad); top = minOf(top, g.player.bottom) }
+        // a plain bounce goes about five tiles up, more than a normal jump
+        assertTrue("apex $top", top in 90f..112f)
+        assertEquals(Game.State.PLAYING, g.state)
+    }
+
+    @Test
+    fun timedSpringJumpReachesSkyRoad() {
+        val g = springApex(boost = true, steer = true)
+        var top = g.player.bottom
+        repeat(110) { g.update(pad); top = minOf(top, g.player.bottom) }
+        pad.jump = false; pad.right = false; pad.run = false
+        assertTrue("apex $top", top < 20f)
+        // landed on the clouds in the sky
+        g.run(20)
+        assertEquals(4 * 16f, g.player.bottom, 0.01f)
+        assertTrue("x ${g.player.x / 16}", g.player.x / 16 in 135f..148f)
+    }
+
+    @Test
+    fun springboardSidesAreSolid() {
+        val g = Game()
+        g.debugLoad(4, 128, noEnemies = true)
+        g.run(2)
+        g.run(120) { right = true }
+        assertTrue("x ${g.player.x}", g.player.x + g.player.w <= 132 * 16f + 0.01f)
+        assertTrue(g.player.spring == null)
+    }
+
+    @Test
+    fun vineLeadsToCoinHeavenAndBack() {
+        val g = Game()
+        g.debugLoad(4, 51, noEnemies = true)
+        g.run(2)
+        g.run(30) { jump = true }
+        assertEquals(Tile.USED, g.level.get(51, 9))
+        assertEquals(1, g.vines.size)
+        g.run(100)
+        // stand on the brick bridge above the vine block and climb up
+        g.player.y = 9 * 16f - g.player.h
+        g.run(2)
+        g.run(30) { up = true }
+        assertEquals(PMode.CLIMB, g.player.mode)
+        g.run(300) { up = true }
+        assertTrue("x ${g.player.x / 16}", g.player.x > 222 * 16f)
+        assertEquals(PMode.NORMAL, g.player.mode)
+        assertEquals(11 * 16f, g.player.bottom, 0.01f)
+        // walking off the end of the clouds drops the hero back into the level, alive
+        var f = 0
+        pad.right = true
+        while (g.player.x > 200 * 16f && f++ < 800) g.update(pad)
+        g.run(120)
+        assertEquals(Game.State.PLAYING, g.state)
+        assertEquals(3, g.lives)
+        assertTrue("x ${g.player.x / 16}", g.player.x / 16 in 128f..132f)
+        assertTrue(g.player.onGround)
+    }
+
+    @Test
+    fun climbingDownLeavesTheVine() {
+        val g = Game()
+        g.debugLoad(4, 51, noEnemies = true)
+        g.run(2)
+        g.run(30) { jump = true }
+        g.run(100)
+        g.player.y = 9 * 16f - g.player.h
+        g.run(2)
+        g.run(40) { up = true }
+        g.run(60) { down = true }
+        assertEquals(PMode.NORMAL, g.player.mode)
+        assertEquals(9 * 16f, g.player.bottom, 0.01f)
+    }
+
+    @Test
     fun allLevelsBuildAndSongsStayInSync() {
-        for (i in 0 until 4) {
+        for (i in 0 until Levels.COUNT) {
             val g = Game()
             g.debugLoad(i)
             assertTrue(g.level.width > 100)

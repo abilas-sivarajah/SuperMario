@@ -25,10 +25,11 @@ object Tile {
     const val HPIPE_MOUTH_B = 21
     const val HPIPE_T = 22
     const val HPIPE_B = 23
+    const val CLOUD = 24
 
     fun solid(t: Int) = when (t) {
         GROUND, BRICK, QUESTION, USED, HARD, PIPE_TL, PIPE_TR, PIPE_L, PIPE_R,
-        TREE_L, TREE_M, TREE_R, BRIDGE, HPIPE_MOUTH_T, HPIPE_MOUTH_B, HPIPE_T, HPIPE_B -> true
+        TREE_L, TREE_M, TREE_R, BRIDGE, HPIPE_MOUTH_T, HPIPE_MOUTH_B, HPIPE_T, HPIPE_B, CLOUD -> true
         else -> false
     }
 
@@ -36,7 +37,7 @@ object Tile {
     fun bumpable(t: Int) = t == BRICK || t == QUESTION || t == HIDDEN
 }
 
-enum class Content { NONE, COIN, POWER, ONE_UP, STAR, MULTI_COIN }
+enum class Content { NONE, COIN, POWER, ONE_UP, STAR, MULTI_COIN, VINE }
 
 enum class EnemyKind { WALKER, TURTLE, RED_TURTLE, FLY_TURTLE, BITER, PODOBOO, FIRE_BAR, BOSS }
 
@@ -44,13 +45,19 @@ class Spawn(val kind: EnemyKind, val tx: Int, val ty: Int, val param: Int = 0) {
     var spawned = false
 }
 
-/** A horizontal stretch of the map with its own look and camera bounds (main area, bonus room, ...). */
-class Zone(val x0: Int, val x1: Int, val theme: Theme, val bg: Int = theme.bg)
+/**
+ * A horizontal stretch of the map with its own look and camera bounds (main area, bonus room, ...).
+ * Falling out of a zone with [fallTo] >= 0 is not deadly: the player drops back in at that column (coin heaven).
+ */
+class Zone(val x0: Int, val x1: Int, val theme: Theme, val bg: Int = theme.bg, val fallTo: Int = -1)
 
-enum class WarpKind { PIPE_DOWN, PIPE_RIGHT }
-enum class ExitKind { PIPE_UP, DROP }
+enum class WarpKind { PIPE_DOWN, PIPE_RIGHT, VINE }
+enum class ExitKind { PIPE_UP, DROP, VINE_UP }
 
-/** Entering pipe tile ([tx],[ty]) moves the player to ([destX],[destY]) (tile coordinates). */
+/**
+ * Entering pipe tile ([tx],[ty]) moves the player to ([destX],[destY]) (tile coordinates).
+ * For [WarpKind.VINE] ([tx],[ty]) is the block the vine grows out of; climbing off the top of the screen warps.
+ */
 class Warp(val kind: WarpKind, val tx: Int, val ty: Int, val destX: Int, val destY: Int, val exit: ExitKind, val toLevel: Int = -1)
 
 enum class LiftKind { LOOP_UP, LOOP_DOWN, SWING_X, SWING_Y, FALL }
@@ -70,6 +77,8 @@ class Level(val width: Int, val height: Int = 15) {
     val warps = mutableListOf<Warp>()
     val zones = mutableListOf<Zone>()
     val decorations = mutableListOf<Decoration>()
+    /** Springboards, by the tile column and the upper of the two rows they fill. */
+    val springs = mutableListOf<Pair<Int, Int>>()
 
     var name = "1-1"
     var time = 400

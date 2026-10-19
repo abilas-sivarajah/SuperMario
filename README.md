@@ -9,6 +9,8 @@ Grafik, Musik und Soundeffekte entstehen im Code (eigene Pixel-Art und eigene Ch
 | ![Titel](docs/title.png) | ![1-1](docs/world1-1.png) | ![1-2](docs/world1-2.png) |
 | **Welt 1-3** | **Welt 1-4** | **Warp-Zone** |
 | ![1-3](docs/world1-3.png) | ![1-4](docs/world1-4.png) | ![Warp](docs/warpzone.png) |
+| **Welt 2-1** | **Münzhimmel** | **Sprungfeder** |
+| ![2-1](docs/world2-1.png) | ![Münzhimmel](docs/coinheaven.png) | ![Sprungfeder](docs/springboard.png) |
 
 ## Features
 
@@ -19,10 +21,15 @@ Grafik, Musik und Soundeffekte entstehen im Code (eigene Pixel-Art und eigene Ch
   - 1-2 Untergrund mit Liften, Pflanzen in Röhren und einer geheimen **Warp-Zone** über der Decke
   - 1-3 Baumwipfel hoch über dem Abgrund mit schwingenden und fallenden Plattformen
   - 1-4 Burg mit Lava, Feuerbalken, Lavablasen und dem Feuer speienden Boss auf der Brücke (Axt!)
+- **Welt 2** (bisher 2-1): nach der Burg 1-4 geht es weiter
+  - 2-1 Oberwelt vor der Burg aus Welt 1, mit Grumpel-Trios, Flug-Schildkröten, einer **Ranke**
+    (in einem Ziegel der Brücke versteckt – von unten anstoßen), die in einen **Münzhimmel** über den Wolken führt,
+    und einer **Sprungfeder**: normal federn sammelt die Münzen darüber ein, im richtigen Moment A drücken
+    katapultiert auf eine Wolkenstraße hoch über den Gegnern
 - **Gegner:** Grumpel (zum Draufspringen), Schildkröten (grün, rot, geflügelt) mit kickbarem Panzer,
   Schnappblumen, Lavablasen, Feuerbalken, Boss „Krawallo“
 - **Items:** Pilz (groß werden), Feuerblume (Feuerbälle), Stern (unverwundbar), 1-UP-Pilz,
-  Münzen, ?-Blöcke, zerbrechliche Steine, Mehrfach-Münzblöcke, versteckte Blöcke
+  Münzen, ?-Blöcke, zerbrechliche Steine, Mehrfach-Münzblöcke, versteckte Blöcke, Ranken-Blöcke
 - **Punkte wie im Original:** Stampf-Kombos bis zum 1-UP, Panzer-Kombos, Fahnenmast-Bonus nach Höhe,
   Zeitbonus, Feuerwerk (wenn die Restzeit auf 1, 3 oder 6 endet), 100 Münzen = 1-UP, Highscore wird gespeichert
 - **Sound:** eigener Chiptune-Synthesizer (2× Puls, Dreieck, Rauschen) mit Oberwelt-, Untergrund-,
@@ -36,11 +43,14 @@ Grafik, Musik und Soundeffekte entstehen im Code (eigene Pixel-Art und eigene Ch
 |---|---|---|---|
 | Laufen | Steuerkreuz links | Steuerkreuz / Stick | Pfeiltasten / A, D |
 | Ducken / in Röhre | Steuerkreuz unten | unten | ↓ / S |
+| Ranke hoch-/runterklettern | Steuerkreuz oben / unten | oben / unten | ↑ / W, ↓ / S |
 | Springen (gedrückt halten = höher) | **A** | A | Leertaste / K |
 | Rennen / Feuerball | **B** (Daumen zwischen A und B = beides) | B / X / Y | Shift / J |
 | Pause | ⏸ oben links | Start | Enter / P |
 
 In Seitenröhren läuft man einfach hinein (rechts drücken), in senkrechte Röhren mit „unten“.
+Eine Ranke packt man im Sprung oder mit „oben“; mit links/rechts oder A lässt man wieder los.
+Auf der Sprungfeder A drücken, während sie zusammengedrückt wird – dann geht es richtig hoch.
 
 ## Installieren & Bauen
 
@@ -67,7 +77,7 @@ app/src/main/java/com/supanga/bros/
 └── core/                            plattformunabhängiger Spielkern (reines Kotlin)
     ├── Game.kt                      Zustände, Kamera, Kollisionen, Punkte, HUD, Titelbild
     ├── Player.kt                    Held „Nga“ und seine Physik
-    ├── Enemies.kt, Items.kt         Gegner, Power-ups, Feuerbälle, Lifte
+    ├── Enemies.kt, Items.kt         Gegner, Power-ups, Feuerbälle, Lifte, Ranken, Sprungfedern
     ├── Level.kt, Levels.kt          Kachelwelt + Level-DSL mit allen Leveln
     ├── Art.kt, Sprites.kt, Gfx.kt   Pixel-Art als ASCII, Paletten, Software-Renderer, Schrift
     └── Audio.kt                     Synthesizer, Musikstücke, Soundeffekte
@@ -80,8 +90,12 @@ ground(0, 68)                 // Boden von Spalte 0 bis 68
 row(20, 9, "BMB?B")           // Steine, Power-up-Block, Münzblock
 pipe(28, 2)                   // Röhre, 2 Kacheln hoch
 walkers(12, 22)               // Gegner
+row(48, 9, "BBBVBB")          // Ziegel mit Ranke (V); C wären Wolkenblöcke
+spring(132)                   // Sprungfeder
 flag(198); castle(202)        // Fahnenmast und Burg
 ```
+
+Neue Level kommen in `Levels.names` (Reihenfolge und Anzeige im HUD) und in `Levels.create`.
 
 ## Hinweis
 

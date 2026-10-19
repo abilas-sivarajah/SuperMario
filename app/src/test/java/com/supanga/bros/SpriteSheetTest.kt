@@ -24,6 +24,7 @@ class SpriteSheetTest {
         all += listOf(Sprites.treeLeft, Sprites.treeMid, Sprites.treeRight, Sprites.trunk, Sprites.bridge, Sprites.chain)
         all += listOf(Sprites.lavaTop, Sprites.lava) + Sprites.axe + listOf(Sprites.lift, Sprites.flag, Sprites.poleTop)
         all += listOf(Sprites.bossClosed, Sprites.bossOpen, Sprites.bossFire, Sprites.podoboo, Sprites.retainer)
+        all += listOf(Sprites.vine, Sprites.vineTop, Sprites.cloudBlock) + Sprites.spring.filterIndexed { i, _ -> i % 4 == 0 }
         all += Sprites.clouds + Sprites.bushes + listOf(Sprites.hillBig, Sprites.hillSmall, Sprites.castle)
 
         val sheetW = 520

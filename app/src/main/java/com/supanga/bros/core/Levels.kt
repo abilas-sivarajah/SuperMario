@@ -13,7 +13,7 @@ class LevelBuilder(width: Int) {
     /**
      * Places a horizontal run of blocks starting at ([x],[y]):
      * B brick, ? coin block, M power-up block, U used, H hard, o coin, h hidden 1-UP,
-     * i hidden coin, c multi-coin brick, S star brick, L 1-UP brick, G ground, ' ' skip.
+     * i hidden coin, c multi-coin brick, S star brick, L 1-UP brick, V vine brick, C cloud, G ground, ' ' skip.
      */
     fun row(x: Int, y: Int, s: String) {
         s.forEachIndexed { i, ch ->
@@ -32,6 +32,8 @@ class LevelBuilder(width: Int) {
                 'S' -> block(tx, y, Tile.BRICK, Content.STAR)
                 'L' -> block(tx, y, Tile.BRICK, Content.ONE_UP)
                 'P' -> block(tx, y, Tile.BRICK, Content.POWER)
+                'V' -> block(tx, y, Tile.BRICK, Content.VINE)
+                'C' -> lv.set(tx, y, Tile.CLOUD)
                 ' ' -> Unit
                 else -> error("unknown block '$ch'")
             }
@@ -94,8 +96,18 @@ class LevelBuilder(width: Int) {
         lv.decorations += Decoration(Deco.CASTLE, x * 16, 13 * 16 - 80)
     }
 
-    fun zone(x0: Int, x1: Int, theme: Theme) {
-        lv.zones += Zone(x0, x1, theme)
+    /** The castle of the previous world, behind the start position. */
+    fun startCastle(x: Int = 0) {
+        lv.decorations += Decoration(Deco.CASTLE, x * 16, 13 * 16 - 80)
+    }
+
+    /** Springboard standing on row [base] (it fills the two rows above). */
+    fun spring(x: Int, base: Int = 13) {
+        lv.springs += x to base - 2
+    }
+
+    fun zone(x0: Int, x1: Int, theme: Theme, fallTo: Int = -1) {
+        lv.zones += Zone(x0, x1, theme, fallTo = fallTo)
     }
 
     fun warp(kind: WarpKind, tx: Int, ty: Int, destX: Int, destY: Int, exit: ExitKind, toLevel: Int = -1) {
@@ -146,13 +158,16 @@ class LevelBuilder(width: Int) {
 }
 
 object Levels {
-    const val COUNT = 4
+    /** Level names in the order they are played. */
+    val names = listOf("1-1", "1-2", "1-3", "1-4", "2-1")
+    val COUNT = names.size
 
     fun create(index: Int): Level = when (index) {
         0 -> level11()
         1 -> level12()
         2 -> level13()
-        else -> level14()
+        3 -> level14()
+        else -> level21()
     }
 
     /** World 1-1: classic overworld with a hidden bonus room. */
@@ -446,6 +461,87 @@ object Levels {
         fill(133, 135, 3, 5, stone)
         lv.axeX = 133
         lv.axeY = 9
+        build()
+    }
+
+    /**
+     * World 2-1: overworld behind the castle of world 1, with marching walker trios, paratroopas,
+     * a vine hidden under a brick bridge that leads up to coin heaven, and a springboard to a road in the sky.
+     */
+    private fun level21(): Level = LevelBuilder(288).run {
+        lv.name = "2-1"
+        lv.time = 400
+        lv.music = Song.OVERWORLD
+        lv.checkpointX = 88
+        zone(0, 213, Theme.OVERWORLD)
+        zone(222, 288, Theme.OVERWORLD, fallTo = 128)
+        scenery(0, 213)
+        startCastle()
+
+        // A: meadow in front of the castle
+        ground(0, 39)
+        row(10, 9, "?")
+        row(14, 9, "BMB?B")
+        row(16, 5, "B?B")
+        enemy(EnemyKind.TURTLE, 20) // kick its shell into the trio behind it
+        walkers(12, 23, 25, 27)
+        row(29, 8, "h")
+        pipe(32, 3, biter = true)
+
+        // B: stairs up to a brick bridge; one brick of it holds the vine (hit it from below)
+        ground(42, 80)
+        stairsUp(44, 4)
+        row(48, 9, "BBBVBB")
+        enemy(EnemyKind.RED_TURTLE, 52, 8)
+        walkers(12, 57, 59)
+        pipe(62, 2)
+        row(66, 9, "?B?")
+        row(67, 5, "c")
+        pipe(71, 4, biter = true)
+        stairsUp(76, 4)
+        column(80, 9, 12, Tile.HARD)
+
+        // C: paratroopas hopping around the pits
+        ground(83, 100)
+        stairsDown(83, 4)
+        row(91, 9, "B?M?B")
+        enemy(EnemyKind.FLY_TURTLE, 96)
+        ground(104, 139)
+        enemy(EnemyKind.FLY_TURTLE, 107)
+        row(110, 9, "BBBB")
+        row(110, 5, "BSBB")
+        walkers(12, 114, 116, 118)
+        pipe(122, 3, biter = true)
+
+        // D: springboard. A normal bounce collects the coins above it, a well-timed one reaches the sky road.
+        spring(132)
+        column(132, 6, 8, Tile.COIN)
+        row(135, 4, "C".repeat(14))
+        row(136, 3, "o".repeat(12))
+        ground(143, 165)
+        walkers(12, 146, 148, 150)
+        enemy(EnemyKind.TURTLE, 155)
+        row(157, 9, "B?B")
+        pipe(162, 2)
+
+        // E: last stretch, staircase, flag and castle
+        ground(169, 212)
+        walkers(12, 172, 174, 176)
+        row(172, 9, "?B?")
+        pipe(178, 2, biter = true)
+        stairsUp(182, 8)
+        column(190, 5, 12, Tile.HARD)
+        flag(199)
+        castle(203)
+
+        // Coin heaven: the vine comes up through the first cloud, walking off the end drops back down at column 128
+        warp(WarpKind.VINE, 51, 9, 225, 11, ExitKind.VINE_UP)
+        scenery(222, 288, hills = false)
+        row(224, 11, "C".repeat(44))
+        row(229, 7, "oooooooo")
+        row(239, 9, "oooooo")
+        row(247, 7, "oooooooo")
+        row(257, 9, "oooooo")
         build()
     }
 }

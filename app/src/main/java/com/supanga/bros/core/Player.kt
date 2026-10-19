@@ -18,7 +18,7 @@ class Buttons {
     }
 }
 
-enum class PMode { NORMAL, GROW, SHRINK, FIRE_UP, DEAD, PIPE_DOWN, PIPE_RIGHT, PIPE_UP, FLAG_SLIDE, FLAG_WAIT, AUTO_WALK, HIDDEN }
+enum class PMode { NORMAL, GROW, SHRINK, FIRE_UP, DEAD, PIPE_DOWN, PIPE_RIGHT, PIPE_UP, FLAG_SLIDE, FLAG_WAIT, AUTO_WALK, HIDDEN, CLIMB, VINE_UP }
 
 /** The hero, Nga. Movement values follow the feel of classic 8-bit platformers (pixels per frame at 60 fps). */
 class Player(x: Float, y: Float) : Entity(x, y, 12, 14) {
@@ -47,6 +47,10 @@ class Player(x: Float, y: Float) : Entity(x, y, 12, 14) {
     var prevBottom = 0f
     var warp: Warp? = null
     var walkTargetX = 0f
+    var vine: Vine? = null
+    var spring: Spring? = null
+    /** Frames until a vine can be grabbed again after letting go. */
+    var grabCooldown = 0
 
     private var holdG = 0.125f
     private var fallG = 0.4375f
@@ -55,6 +59,8 @@ class Player(x: Float, y: Float) : Entity(x, y, 12, 14) {
     private var jumped = false
     private var animTick = 0f
     private var walkFrame = 0
+    private var climbFrame = 0
+    private var climbTick = 0
     private var throwTimer = 0
     private var deadTimer = 0
 
@@ -117,6 +123,9 @@ class Player(x: Float, y: Float) : Entity(x, y, 12, 14) {
         if (invuln > 0) invuln--
         if (star > 0) star--
         if (throwTimer > 0) throwTimer--
+        if (grabCooldown > 0) grabCooldown--
+        spring?.let { rideSpring(g, it, b, aPressed); return }
+        if (mode == PMode.CLIMB) { climb(g, b, aPressed); return }
         val lv = g.level
         val dir = (if (b.right) 1 else 0) - (if (b.left) 1 else 0)
 
@@ -195,6 +204,76 @@ class Player(x: Float, y: Float) : Entity(x, y, 12, 14) {
         animate()
     }
 
+    private fun rideSpring(g: Game, s: Spring, b: Buttons, aPressed: Boolean) {
+        vx = 0f
+        vy = 0f
+        if (aPressed) s.boost = true
+        val thrown = s.squeeze()
+        y = s.top - h
+        onGround = true
+        if (!thrown) return
+        spring = null
+        // A well-timed press throws the hero above the screen, otherwise it's a big bounce.
+        vy = if (s.boost) -7.6f else -5.5f
+        holdG = 0.16f
+        fallG = if (s.boost) 0.4375f else 0.2f
+        s.boost = false
+        airMax = if (b.run) MAX_RUN else MAX_WALK
+        takeoffSpeed = 0f
+        jumped = true
+        onGround = false
+        g.sound.play(Sfx.SPRING)
+    }
+
+    fun grab(v: Vine) {
+        mode = PMode.CLIMB
+        vine = v
+        vx = 0f
+        vy = 0f
+        setDuck(false)
+        x = v.x + 2
+        riding = null
+    }
+
+    private fun climb(g: Game, b: Buttons, aPressed: Boolean) {
+        val v = vine
+        val dir = (if (b.right) 1 else 0) - (if (b.left) 1 else 0)
+        if (v == null || aPressed || (dir != 0 && !b.up && !b.down)) {
+            // let go: step off sideways or jump away
+            mode = PMode.NORMAL
+            vine = null
+            grabCooldown = 20
+            if (dir != 0) facing = dir
+            vx = facing * 1f
+            vy = if (aPressed) -3.5f else 0f
+            jumped = aPressed
+            if (aPressed) g.sound.play(if (big) Sfx.JUMP_BIG else Sfx.JUMP_SMALL)
+            return
+        }
+        x = v.x + 2
+        vx = 0f
+        vy = 0f
+        when {
+            b.up -> { y = maxOf(y - 1f, v.y); climbStep() }
+            b.down -> { y += 1f; climbStep() }
+        }
+        if (bottom >= v.baseY) {
+            // climbed down to the block the vine grows out of
+            y = v.baseY - h
+            mode = PMode.NORMAL
+            vine = null
+            grabCooldown = 20
+        }
+    }
+
+    /** Arms and legs alternate while climbing. */
+    fun climbStep() {
+        if (++climbTick >= 8) {
+            climbTick = 0
+            climbFrame = 1 - climbFrame
+        }
+    }
+
     private fun decelerate(d: Float) {
         if (abs(vx) <= d) vx = 0f else vx -= sign(vx) * d
     }
@@ -270,6 +349,7 @@ class Player(x: Float, y: Float) : Entity(x, y, 12, 14) {
         mode == PMode.DEAD -> Sprites.SPECIAL
         mode == PMode.FLAG_SLIDE || mode == PMode.FLAG_WAIT -> Sprites.JUMP
         mode == PMode.PIPE_DOWN || mode == PMode.PIPE_UP -> Sprites.STAND
+        mode == PMode.CLIMB || mode == PMode.VINE_UP -> Sprites.CLIMB1 + climbFrame
         ducking -> Sprites.SPECIAL
         !onGround && jumped -> Sprites.JUMP
         throwTimer > 0 -> Sprites.WALK3

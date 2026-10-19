@@ -98,5 +98,35 @@ class ScreenshotTest {
         g.debugLoad(2, 30)
         run(g, 30)
         shot(g, "19_trees")
+        // world 2-1 starts in front of the castle of world 1
+        g = Game()
+        g.debugLoad(4)
+        run(g, 3)
+        shot(g, "20_world2")
+        // the vine grows out of the brick bridge, the hero climbs it into coin heaven
+        g = Game()
+        g.debugLoad(4, 51, power = 1, noEnemies = true)
+        run(g, 2)
+        run(g, 30) { jump = true }
+        run(g, 60)
+        g.player.y = 9 * 16f - g.player.h
+        run(g, 2)
+        run(g, 60) { up = true }
+        shot(g, "21_vine")
+        run(g, 260) { up = true }
+        run(g, 60) { right = true }
+        run(g, 12) { right = true; jump = true }
+        shot(g, "22_coin_heaven")
+        // springboard squeezed, then a timed jump up to the road in the sky
+        g = Game()
+        g.debugLoad(4, 126, noEnemies = true)
+        run(g, 2)
+        g.player.x = 132 * 16f + 2
+        g.player.y = 120f
+        run(g, 14)
+        shot(g, "23_spring")
+        run(g, 100) { jump = true; right = true; run = true }
+        run(g, 30) { right = true }
+        shot(g, "24_sky_road")
     }
 }

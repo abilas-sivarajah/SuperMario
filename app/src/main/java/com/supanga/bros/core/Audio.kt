@@ -9,7 +9,7 @@ enum class Song { NONE, OVERWORLD, UNDERGROUND, CASTLE, STAR, CLEAR, DEATH, GAME
 
 enum class Sfx {
     JUMP_SMALL, JUMP_BIG, COIN, BUMP, BREAK, STOMP, KICK, POWER_APPEAR, POWER_UP, ONE_UP,
-    FIREBALL, PIPE, FLAGPOLE, BEEP, FIREWORK, BOSS_FIRE, BOSS_FALL, PAUSE,
+    FIREBALL, PIPE, FLAGPOLE, BEEP, FIREWORK, BOSS_FIRE, BOSS_FALL, PAUSE, VINE, SPRING,
 }
 
 /** What the game needs from the audio system. */
@@ -205,6 +205,8 @@ private object Effects {
         Sfx.BOSS_FIRE -> listOf(Seg(Wave.NOISE, 1400f, 700f, 0.6f, 0.6f, 0.05f))
         Sfx.BOSS_FALL -> listOf(Seg(Wave.PULSE25, 700f, 50f, 1.3f, 0.5f, 0.1f))
         Sfx.PAUSE -> notes("E6 C6 E6 C6", 0.08f)
+        Sfx.VINE -> notes("C5 G5 C6 D5 A5 D6 E5 B5 E6 F#5 C#6 F#6 G5 D6 G6 A5 E6 A6", 0.04f, Wave.PULSE25)
+        Sfx.SPRING -> listOf(Seg(Wave.PULSE25, 150f, 520f, 0.1f, 0.55f, 0.4f), Seg(Wave.PULSE25, 520f, 1100f, 0.18f, 0.4f, 0.1f))
     }
 }
 

@@ -94,6 +94,26 @@ object Art {
         "..KKKKK..KKKKK..",
     )
 
+    /** Seen from behind, holding on to a vine (the second frame is this one mirrored). */
+    val smallClimb = listOf(
+        "..KK............",
+        ".KSSK..KKK......",
+        ".KSSK.KWWWK.....",
+        ".KCCKKKKWKKK....",
+        ".KCCKCCCCCCCK...",
+        "..KCKCCCCCCCCK..",
+        "..KCKWWWWWWWWK..",
+        "..KCKHHHHHHHHKK.",
+        "...KKHHHHHHHKSSK",
+        "...KCKHHHHHHKSSK",
+        "...KCCKKKKKKCKK.",
+        "...KCOOOOOOCCK..",
+        "...KOYOOOOYOK...",
+        "...KOOOOOOOOK...",
+        "..KHHHKKOOOOK...",
+        "..KKKKK.KHHHK...",
+    )
+
     // ---------------------------------------------------------------- hero (big, 16x32, facing right)
 
     private val bigHead = listOf(
@@ -237,6 +257,41 @@ object Art {
         "..KHHHHKKHHHHK..",
         ".KHHHHHKKHHHHHK.",
         ".KKKKKKKKKKKKKK.",
+    )
+
+    val bigClimb = listOf(
+        "..KK............",
+        ".KSSK...KKK.....",
+        ".KSSK..KWWWK....",
+        ".KSSK..KWWWK....",
+        ".KCCK.KKKWKKK...",
+        ".KCCKKCCCCCCCK..",
+        ".KCCKCCCCCCCCCK.",
+        ".KCCKCCCCCCCCCK.",
+        "..KCKWWWWWWWWWK.",
+        "..KCKHHHHHHHHHKK",
+        "..KCKHHHHHHHHKSK",
+        "..KCKHHHHHHHHKSK",
+        "...KKKHHHHHHKKK.",
+        "...KCCKKKKKKCCK.",
+        "..KCCCCCCCCCCCK.",
+        "..KCCOCCCCCOCCK.",
+        "..KCCOCCCCCOCSSK",
+        "..KCCOOOOOOOCSSK",
+        "..KCKOOOOOOOKKK.",
+        "...KOOOOOOOOK...",
+        "...KOOOOOOOOK...",
+        "...KOOOOOOOOK...",
+        "...KOOOOKOOOOK..",
+        "..KOOOOK.KOOOK..",
+        "..KOOOOK.KOOOK..",
+        "..KOOOK..KOOOK..",
+        ".KHHHHK..KOOOK..",
+        ".KHHHHK..KOOOK..",
+        ".KKKKKK..KHHHK..",
+        ".........KHHHHK.",
+        ".........KKKKKK.",
+        "................",
     )
 
     // ---------------------------------------------------------------- enemies
@@ -771,6 +826,75 @@ object Art {
         "KGGGGGGK",
         ".KGGGGK.",
         "..KKKK..",
+    )
+
+    // ---------------------------------------------------------------- world 2: vine, coin heaven, springboard
+
+    val vine = listOf(
+        "......KGLK......",
+        "......KGLK......",
+        "..KKK.KGLK......",
+        ".KLLLKKGLK......",
+        "KLLLLLKGLK......",
+        "KGLLLGKGLK......",
+        ".KGGGKKGLK......",
+        "..KKK.KGLK......",
+        "......KGLK.KKK..",
+        "......KGLKKLLLK.",
+        "......KGLKLLLLLK",
+        "......KGLKGLLLGK",
+        "......KGLKKGGGK.",
+        "......KGLK.KKK..",
+        "......KGLK......",
+        "......KGLK......",
+    )
+
+    val vineTop = listOf(
+        "................",
+        "......KK........",
+        ".....KLLK.......",
+        "....KLLLLK......",
+        "....KLLLGK......",
+        "....KGLGGK..KK..",
+        ".....KGGK..KLLK.",
+        "......KGLKKLLLK.",
+        "..KKK.KGLKLLLGK.",
+        ".KLLLKKGLKGGGK..",
+        "KLLLLLKGLKKKK...",
+        "KGLLLGKGLK......",
+        ".KGGGKKGLK......",
+        "..KKK.KGLK......",
+        "......KGLK......",
+        "......KGLK......",
+    )
+
+    val cloudBlock = listOf(
+        "...KKKK..KKKK...",
+        "..KWWWWKKWWWWK..",
+        ".KWWWWWWWWWWWWK.",
+        "KWWWWWWWWWWWWWWK",
+        "KWWWWWWWWWWWWWWK",
+        "KWWWWWWWWWWWWWWK",
+        ".KWWWWWWWWWWWWK.",
+        ".KWWWWWWWWWWWWK.",
+        "KWWWWWWWWWWWWWWK",
+        "KWWWWWWWWWWWWWWK",
+        "KWBWWWWWWWWWWBWK",
+        "KWBBWWWWWWWWBBWK",
+        ".KBBBWWWWWWBBBK.",
+        ".KBBBBBWWBBBBBK.",
+        "..KKBBBKKBBBKK..",
+        "....KKK..KKK....",
+    )
+
+    /** Top and bottom plate of the springboard; the coil between them is drawn in [Sprites]. */
+    val springPlate = listOf(
+        ".KKKKKKKKKKKKKK.",
+        "KYYYYYYYYYYYYRRK",
+        "KYRRRRRRRRRRRRDK",
+        "KRRRRRRRRRRRRRDK",
+        "KDDDDDDDDDDDDDDK",
+        ".KKKKKKKKKKKKKK.",
     )
 
     // ---------------------------------------------------------------- castle level

@@ -1,5 +1,6 @@
 package com.supanga.bros.core
 
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 enum class Theme(val bg: Int) {
@@ -20,6 +21,8 @@ object Sprites {
     const val JUMP = 4
     const val SKID = 5
     const val SPECIAL = 6 // small: dead, big: duck
+    const val CLIMB1 = 7
+    const val CLIMB2 = 8
 
     private val heroBase = mapOf(
         'K' to c(0xFF101010), 'W' to c(0xFFFCFCFC), 'S' to c(0xFFFCBC8C), 'H' to c(0xFF6C3008),
@@ -37,12 +40,14 @@ object Sprites {
     const val PAL_STAR = 2 // 2..4
 
     val small: List<List<Image>> = heroPalettes.map { p ->
+        val climb = Image.art(Art.smallClimb, p)
         listOf(Art.smallStand, Art.smallWalk1, Art.smallWalk2, Art.smallWalk3, Art.smallJump, Art.smallSkid, Art.smallDead)
-            .map { Image.art(it, p) }
+            .map { Image.art(it, p) } + listOf(climb, climb.flippedX())
     }
     val big: List<List<Image>> = heroPalettes.map { p ->
+        val climb = Image.art(Art.bigClimb, p)
         listOf(Art.bigStand, Art.bigWalk1, Art.bigWalk2, Art.bigWalk3, Art.bigJump, Art.bigSkid, Art.bigDuck)
-            .map { Image.art(it, p) }
+            .map { Image.art(it, p) } + listOf(climb, climb.flippedX())
     }
 
     // ---------------------------------------------------------------- enemies
@@ -172,6 +177,33 @@ object Sprites {
     val lift = Image.art(Art.liftSegment, mapOf('A' to c(0xFFE89060), 'L' to c(0xFFFCD0B0), 'K' to c(0xFF702800)))
     val flag = Image.art(Art.flag, mapOf('W' to Colors.WHITE, 'R' to c(0xFFE83818), 'K' to c(0xFF00A800)))
     val poleTop = Image.art(Art.poleTop, mapOf('G' to c(0xFF00A800), 'L' to c(0xFF80D010), 'K' to Colors.BLACK))
+
+    // ---------------------------------------------------------------- world 2
+    private val vinePal = mapOf('G' to c(0xFF00A800), 'L' to c(0xFF80D010), 'K' to Colors.BLACK)
+    val vine = Image.art(Art.vine, vinePal)
+    val vineTop = Image.art(Art.vineTop, vinePal)
+    val cloudBlock = Image.art(Art.cloudBlock, mapOf('W' to Colors.WHITE, 'B' to c(0xFFA8D8FC), 'K' to c(0xFF101010)))
+
+    /** Springboard squeezed by 0..16 pixels: plates with a coil of rings between them, 16x32. */
+    val spring: List<Image> = run {
+        val pal = mapOf(
+            'K' to c(0xFF101010), 'R' to c(0xFFE83818), 'Y' to c(0xFFFC9838), 'D' to c(0xFF881400),
+            'W' to Colors.WHITE, 'G' to c(0xFFA8A8A8),
+        )
+        val plate = Image.art(Art.springPlate, pal)
+        val ring = Image.art(listOf("..KWWWWWWWWWWK..", "...KGGGGGGGGK..."), pal)
+        val posts = Image.art(listOf(".....KG..GK....."), pal)
+        (0..16).map { press ->
+            val cv = Canvas(16, 32)
+            val coilTop = press + 6
+            val coilH = 20 - press
+            for (y in coilTop until 26) cv.draw(posts, 0, y)
+            for (i in 0 until 5) cv.draw(ring, 0, coilTop + ((i + 0.5f) * coilH / 5).roundToInt() - 1)
+            cv.draw(plate, 0, press)
+            cv.draw(plate, 0, 26)
+            cv.img
+        }
+    }
 
     // ---------------------------------------------------------------- castle level
     private val bossPal = mapOf(

@@ -2,6 +2,7 @@ package com.supanga.bros
 
 import com.supanga.bros.core.Buttons
 import com.supanga.bros.core.Game
+import com.supanga.bros.core.Levels
 import com.supanga.bros.core.Screen
 import com.supanga.bros.core.Tile
 import com.supanga.bros.core.ftile
@@ -24,7 +25,8 @@ class BotTest {
         val front = p.x + p.w
         val feetRow = ftile(p.bottom - 1)
         fun blocking(tx: Int, ty: Int) = lv.solidAt(tx, ty) && lv.get(tx, ty) !in Tile.HPIPE_MOUTH_T..Tile.HPIPE_B
-        val wall = (1..2).any { d -> blocking(ftile(front + d * 6), feetRow) || blocking(ftile(front + d * 6), feetRow - 1) }
+        val wall = (1..2).any { d -> blocking(ftile(front + d * 6), feetRow) || blocking(ftile(front + d * 6), feetRow - 1) } ||
+            g.springs.any { p.spring == null && it.x - front in -2f..14f && it.top < p.bottom }
         val groundAhead = (1..3).all { d -> lv.solidAt(ftile(front + d * 8), feetRow + 1) }
         var gap = !groundAhead
         if (gap) {
@@ -60,13 +62,15 @@ class BotTest {
         // the naive bot can't time lifts, but the lift-free levels must be beaten
         assertTrue("1-1 not finished", 0 in finished)
         assertTrue("1-4 not finished", 3 in finished)
+        assertTrue("2-1 not finished", 4 in finished)
     }
 
     private fun play(god: Boolean, tag: String): Set<Int> {
         val finished = mutableSetOf<Int>()
         val screen = Screen()
         val report = StringBuilder()
-        for (lvl in 0 until 4) {
+        for (lvl in 0 until Levels.COUNT) {
+            val name = Levels.names[lvl]
             val g = Game()
             g.debugLoad(lvl)
             g.debugGod = god
@@ -85,14 +89,14 @@ class BotTest {
                 if (before == Game.State.PLAYING && g.state == Game.State.DYING) {
                     deaths++
                     g.render(screen)
-                    Png.write(File("build/screenshots/${tag}_1-${lvl + 1}_death$deaths.png"), screen.w, screen.h, screen.pixels, 2)
-                    report.append("1-${lvl + 1}: death $deaths at tile ${(g.player.x / 16).toInt()} (time ${g.time})\n")
+                    Png.write(File("build/screenshots/${tag}_${name}_death$deaths.png"), screen.w, screen.h, screen.pixels, 2)
+                    report.append("$name: death $deaths at tile ${(g.player.x / 16).toInt()} (time ${g.time})\n")
                 }
                 if (g.state == Game.State.RESCUE) break
                 if (g.state == Game.State.GAME_OVER) break
             }
             if (g.levelIndex != startLevel || g.state == Game.State.RESCUE) finished += lvl
-            report.append("1-${lvl + 1}: maxTile=${(maxX / 16).toInt()} / ${g.level.width} state=${g.state} level=${g.levelIndex} deaths=$deaths frames=$frames\n")
+            report.append("$name: maxTile=${(maxX / 16).toInt()} / ${g.level.width} state=${g.state} level=${g.levelIndex} deaths=$deaths frames=$frames\n")
         }
         println(report)
         File("build/screenshots/${tag}_report.txt").writeText(report.toString())

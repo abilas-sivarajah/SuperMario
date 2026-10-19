@@ -52,6 +52,8 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
     val fireballs = mutableListOf<Fireball>()
     val effects = mutableListOf<Entity>()
     val lifts = mutableListOf<Lift>()
+    val vines = mutableListOf<Vine>()
+    val springs = mutableListOf<Spring>()
 
     var camX = 0
         private set
@@ -149,6 +151,9 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         effects.clear()
         lifts.clear()
         level.lifts.forEach { lifts += Lift(it) }
+        vines.clear()
+        springs.clear()
+        level.springs.forEach { (tx, ty) -> springs += Spring(tx, ty) }
         var sx = level.startX
         var feet = (level.startY + 1) * TILE
         if (checkpoint && level.checkpointX > 0) {
@@ -295,6 +300,17 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
                 }
                 return
             }
+            PMode.VINE_UP -> {
+                p.y -= 1f
+                p.climbStep()
+                val w = p.warp
+                if (w == null || p.bottom <= w.destY * TILE) {
+                    if (w != null) p.y = w.destY * TILE - p.h.toFloat()
+                    p.mode = PMode.NORMAL
+                    p.vy = 0f
+                }
+                return
+            }
             else -> {}
         }
 
@@ -333,11 +349,15 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         p.prevBottom = p.bottom
         p.update(this, cur, a, b)
         landOnLifts()
+        landOnSprings()
         collectCoins()
+        checkVines()
         checkPipes()
-        if (p.mode != PMode.NORMAL) return
+        if (p.mode == PMode.CLIMB) checkVineTop()
+        if (p.mode != PMode.NORMAL && p.mode != PMode.CLIMB) return
 
         spawnEnemies()
+        vines.forEachSafe { it.update(this) }
         enemies.forEachSafe { it.update(this) }
         items.forEachSafe { it.update(this) }
         fireballs.forEachSafe { it.update(this) }
@@ -353,8 +373,12 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         if (starMusic && p.star == 0) playLevelMusic()
 
         if (p.y > SCREEN_H + 8) {
-            killPlayer()
-            return
+            val back = level.zoneAt(ftile(p.cx)).fallTo
+            if (back < 0) {
+                killPlayer()
+                return
+            }
+            dropInto(back)
         }
         if (level.flagX >= 0 && p.x < level.flagX * TILE + 16) {
             val poleHit = p.x + p.w >= level.flagX * TILE + 6
@@ -385,7 +409,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         val p = player
         p.riding = null
         for (l in lifts) l.ridden = false
-        if (p.vy < 0f) return
+        if (p.vy < 0f || p.mode == PMode.CLIMB) return
         for (l in lifts) {
             if (p.x + p.w > l.x && p.x < l.x + l.w && p.bottom >= l.y && p.prevBottom <= l.y + 4f + abs(l.dy)) {
                 p.landOn(l.y)
@@ -394,6 +418,64 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
                 return
             }
         }
+    }
+
+    private fun landOnSprings() {
+        val p = player
+        if (p.spring != null || p.mode != PMode.NORMAL) return
+        for (s in springs) {
+            if (p.x + p.w <= s.x || p.x >= s.x + s.w || p.bottom <= s.top || p.y >= s.y + s.h) continue
+            if (p.vy >= 0f && p.prevBottom <= s.top + 4f) {
+                p.landOn(s.top)
+                p.spring = s
+            } else {
+                // the sides are solid
+                p.x = if (p.cx < s.cx) s.x - p.w else s.x + s.w
+                p.vx = 0f
+            }
+            return
+        }
+    }
+
+    private fun checkVines() {
+        val p = player
+        if (p.mode != PMode.NORMAL || p.grabCooldown > 0 || p.spring != null) return
+        for (v in vines) {
+            if (v.reaches(p) && (cur.up || !p.onGround)) {
+                p.grab(v)
+                return
+            }
+        }
+    }
+
+    /** Climbing off the top of the screen follows the warp linked to the vine's block. */
+    private fun checkVineTop() {
+        val p = player
+        val v = p.vine ?: return
+        if (p.bottom > 4f) return
+        val w = level.warps.firstOrNull { it.kind == WarpKind.VINE && it.tx == v.tx && it.ty == v.ty }
+        if (w == null) {
+            p.y = 4f - p.h
+            return
+        }
+        p.warp = w
+        p.vine = null
+        doWarp()
+    }
+
+    /** Falling out of coin heaven drops the hero back into the level, further ahead. */
+    private fun dropInto(tx: Int) {
+        val p = player
+        enemies.clear()
+        items.clear()
+        fireballs.clear()
+        vines.clear()
+        p.x = tx * 16f + 2
+        p.y = -p.h.toFloat()
+        p.vx = 0f
+        p.vy = 0f
+        val zone = level.zoneAt(tx)
+        camX = (p.x.toInt() - 40).coerceIn(zone.x0 * TILE, maxOf(zone.x0 * TILE, zone.x1 * TILE - SCREEN_W))
     }
 
     private fun collectCoins() {
@@ -416,6 +498,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
                     p.x >= w.tx * TILE + 2 && p.x + p.w <= w.tx * TILE + 30
                 WarpKind.PIPE_RIGHT -> cur.right && abs(p.x + p.w - w.tx * TILE) < 1.5f &&
                     abs(p.bottom - (w.ty + 2) * TILE) < 1f
+                WarpKind.VINE -> false // taken by climbing off the top, see checkVineTop
             }
             if (enter) {
                 p.mode = if (w.kind == WarpKind.PIPE_DOWN) PMode.PIPE_DOWN else PMode.PIPE_RIGHT
@@ -443,6 +526,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         enemies.clear()
         items.clear()
         fireballs.clear()
+        vines.clear()
         p.riding = null
         when (w.exit) {
             ExitKind.DROP -> {
@@ -456,11 +540,18 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
                 p.mode = PMode.PIPE_UP
                 sound.play(Sfx.PIPE)
             }
+            ExitKind.VINE_UP -> {
+                // come up from below the screen on a vine that reaches through the cloud at the destination
+                vines += Vine(w.destX, w.destY, baseY = SCREEN_H + 32f, top = (w.destY - 2) * 16f, climbable = false)
+                p.x = w.destX * 16f + 2
+                p.y = SCREEN_H.toFloat()
+                p.mode = PMode.VINE_UP
+            }
         }
         p.facing = 1
         val zone = level.zoneAt(w.destX)
         camX = (p.x.toInt() - 40).coerceIn(zone.x0 * TILE, maxOf(zone.x0 * TILE, zone.x1 * TILE - SCREEN_W))
-        if (!starMusic) playLevelMusic()
+        if (!starMusic && w.exit != ExitKind.VINE_UP) playLevelMusic()
     }
 
     private fun spawnEnemies() {
@@ -504,7 +595,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         val p = player
         // player vs enemies
         for (e in enemies) {
-            if (p.mode != PMode.NORMAL) break
+            if (p.mode != PMode.NORMAL && p.mode != PMode.CLIMB) break
             if (e.dead || e.knocked || e.inert) continue
             if (!e.touchesPlayer(p)) continue
             if (p.star > 0) {
@@ -609,7 +700,8 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
 
     fun hurtPlayer() {
         val p = player
-        if (debugGod || p.invuln > 0 || p.star > 0 || p.mode != PMode.NORMAL) return
+        if (debugGod || p.invuln > 0 || p.star > 0 || (p.mode != PMode.NORMAL && p.mode != PMode.CLIMB)) return
+        p.vine = null
         if (p.power > 0) {
             p.setPower(0)
             p.mode = PMode.SHRINK
@@ -741,6 +833,10 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
             Content.ONE_UP -> {
                 items += PowerUp(bx, by, ItemKind.ONE_UP)
                 sound.play(Sfx.POWER_APPEAR)
+            }
+            Content.VINE -> {
+                vines += Vine(tx, ty)
+                sound.play(Sfx.VINE)
             }
             Content.NONE -> sound.play(Sfx.BUMP)
         }
@@ -950,8 +1046,8 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
                 }
             }
             2 -> if (timer > 240 && a) {
-                // a new, harder lap: keep score and lives
-                levelIndex = 0
+                // on to the next world; after the last castle a new lap starts (keeping score and lives)
+                levelIndex = (levelIndex + 1) % Levels.COUNT
                 checkpoint = false
                 savedPower = player.power
                 toIntro()
@@ -972,7 +1068,9 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         renderDecorations(s)
         for (e in enemies) if (e.behindTiles) e.render(s, camX)
         for (it in items) if (it.emerge > 0) it.render(s, camX)
-        val inPipe = player.mode == PMode.PIPE_DOWN || player.mode == PMode.PIPE_RIGHT || player.mode == PMode.PIPE_UP
+        for (v in vines) v.render(s, camX) // grows out from behind its block
+        val inPipe = player.mode == PMode.PIPE_DOWN || player.mode == PMode.PIPE_RIGHT || player.mode == PMode.PIPE_UP ||
+            player.mode == PMode.VINE_UP
         if (inPipe) player.render(s, camX)
         renderTiles(s, zone.theme)
         renderFlag(s)
@@ -985,6 +1083,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
             }
         }
         for (l in lifts) l.render(s, camX)
+        for (sp in springs) sp.render(s, camX)
         for (it in items) if (it.emerge == 0) it.render(s, camX)
         for (e in enemies) if (!e.behindTiles) e.render(s, camX)
         if (!inPipe) player.render(s, camX)
@@ -1056,6 +1155,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
                 Tile.HPIPE_MOUTH_B -> Sprites.hpipeMouthBottom
                 Tile.HPIPE_T -> Sprites.hpipeTop
                 Tile.HPIPE_B -> Sprites.hpipeBottom
+                Tile.CLOUD -> Sprites.cloudBlock
                 else -> null
             } ?: continue
             s.draw(img, tx * TILE - camX, ty * TILE + level.bumpOffset(tx, ty))
@@ -1096,7 +1196,7 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
         if (showTime && state != State.INTRO && state != State.GAME_OVER) t(time.toString().padStart(3, '0'), 208, 24)
     }
 
-    private fun levelName() = "1-${levelIndex + 1}"
+    private fun levelName() = Levels.names[levelIndex]
 
     private fun renderIntro(s: Screen) {
         s.clear(Colors.BLACK)
@@ -1150,11 +1250,19 @@ class Game(val sound: Sound = NoSound, private val storage: Storage = NoStorage)
     }
 
     private fun renderRescueText(s: Screen) {
+        val last = levelIndex == Levels.COUNT - 1
         if (rescueStep >= 1) s.textCentered("THANK YOU NGA!", 64)
         if (rescueStep >= 2 && timer > 60) {
-            s.textCentered("THE KINGDOM IS SAFE", 84)
-            s.textCentered("AGAIN. FOR NOW...", 100)
+            if (last) {
+                s.textCentered("THE KINGDOM IS SAFE", 84)
+                s.textCentered("AGAIN. FOR NOW...", 100)
+            } else {
+                s.textCentered("BUT THAT WAS A FAKE", 84)
+                s.textCentered("KRAWALLO! ON TO WORLD " + Levels.names[levelIndex + 1].substringBefore('-') + "!", 100)
+            }
         }
-        if (rescueStep >= 2 && timer > 240 && (timer / 30) % 2 == 0) s.textCentered("PRESS A FOR A NEW QUEST", 196)
+        if (rescueStep >= 2 && timer > 240 && (timer / 30) % 2 == 0) {
+            s.textCentered(if (last) "PRESS A FOR A NEW QUEST" else "PRESS A TO CONTINUE", 196)
+        }
     }
 }
